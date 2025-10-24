@@ -12,28 +12,56 @@ import {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configurazione WebAuthn
+// Configurazione WebAuthn cloud-friendly
 const rpName = 'Passkeys Server';
 const rpID = process.env.RP_ID || 'localhost'; // Permette override via env var
-const origin = process.env.ORIGIN || `http://${rpID}:${PORT}`;
+const isProduction = process.env.NODE_ENV === 'production';
+const isHttps = process.env.HTTPS === 'true' || isProduction;
+const protocol = isHttps ? 'https' : 'http';
+const defaultPort = isHttps ? 443 : (process.env.PORT || 3000);
+const portSuffix = (defaultPort === 80 || defaultPort === 443) ? '' : `:${defaultPort}`;
+const origin = process.env.ORIGIN || `${protocol}://${rpID}${portSuffix}`;
+
+console.log(`🔧 Configurazione WebAuthn:`);
+console.log(`   - RP ID: ${rpID}`);
+console.log(`   - Origin: ${origin}`);
+console.log(`   - Produzione: ${isProduction}`);
+console.log(`   - HTTPS: ${isHttps}`);
 
 // Storage in memoria per demo (in produzione usare un database)
 const users = new Map();
 const currentChallenges = new Map();
 
-// Middleware
+// Middleware CORS cloud-friendly
 app.use(cors({
-  origin: (origin, callback) => {
-    // Permetti localhost e domini ngrok
-    if (!origin || 
-        origin.includes('localhost') || 
-        origin.includes('ngrok') || 
-        origin.includes('ngrok.io') ||
-        origin.includes('ngrok.app') ||
-        origin.includes('ngrok-free.app')) {
+  origin: (requestOrigin, callback) => {
+    console.log(`🌐 CORS check per origine: ${requestOrigin}`);
+    
+    // Permetti requests senza origin (Postman, curl, etc.)
+    if (!requestOrigin) {
+      return callback(null, true);
+    }
+    
+    // Lista di domini permessi (espandibile)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://localhost:3000',
+      origin, // L'origin configurato
+    ];
+    
+    // Permetti localhost su qualsiasi porta
+    if (requestOrigin.includes('localhost') || 
+        requestOrigin.includes('127.0.0.1') ||
+        requestOrigin.includes('ngrok') || 
+        requestOrigin.includes('ngrok.io') ||
+        requestOrigin.includes('ngrok.app') ||
+        requestOrigin.includes('ngrok-free.app') ||
+        allowedOrigins.includes(requestOrigin)) {
+      console.log(`✅ CORS permesso per: ${requestOrigin}`);
       callback(null, true);
     } else {
-      callback(new Error('Non permesso da CORS'));
+      console.log(`❌ CORS negato per: ${requestOrigin}`);
+      callback(new Error(`Origine ${requestOrigin} non permessa da CORS`));
     }
   },
   credentials: true
@@ -41,6 +69,23 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.static('public'));
+
+// Headers di sicurezza per il cloud
+app.use((req, res, next) => {
+  // Permetti WebAuthn in iframe se necessario
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  
+  // Headers per supportare le passkeys
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  
+  // Headers di sicurezza generali
+  if (isProduction) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  
+  next();
+});
 
 // Middleware specifico per .well-known con headers corretti
 app.use('/.well-known', express.static('static/.well-known', {
@@ -54,16 +99,22 @@ app.use('/.well-known', express.static('static/.well-known', {
 // NON servire contenuti statici sulla root - interferisce con la nostra pagina
 // app.use(express.static('static'));
 
+// Configurazione sessioni cloud-friendly
 app.use(session({
-  secret: 'your-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // true in produzione con HTTPS
+    secure: isHttps, // true in produzione con HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 ore
+    maxAge: 24 * 60 * 60 * 1000, // 24 ore
+    sameSite: isProduction ? 'none' : 'lax' // Per supportare cross-origin in produzione
   }
 }));
+
+console.log(`🍪 Configurazione cookie:`);
+console.log(`   - Secure: ${isHttps}`);
+console.log(`   - SameSite: ${isProduction ? 'none' : 'lax'}`);
 
 // Middleware per verificare l'autenticazione
 const requireAuth = (req, res, next) => {
