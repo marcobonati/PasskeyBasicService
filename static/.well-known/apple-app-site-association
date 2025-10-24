@@ -2,7 +2,7 @@
   "applinks": {
       "details": [
            {
-             "appIDs": [ "D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp"],
+             "appIDs": [ "D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp", "R6566VJZ8K.com.fabrick.labs.mb.iOSPasskeysMainApp"],
              "components": [
                {
                   "#": "no_universal_links",
@@ -28,11 +28,11 @@
        ]
    },
    "webcredentials": {
-      "apps": [ "D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp" ]
+      "apps": [ "D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp", "R6566VJZ8K.com.fabrick.labs.mb.iOSPasskeysMainApp" ]
    },
 
 
     "appclips": {
-        "apps": ["D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp"]
+        "apps": ["D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp", "R6566VJZ8K.com.fabrick.labs.mb.iOSPasskeysMainApp"]
     }
 }
