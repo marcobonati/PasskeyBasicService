@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contenuti Statici - Passkeys Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .header {
+            background: #f4f4f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .links {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .links a {
+            padding: 10px 15px;
+            background: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .links a:hover {
+            background: #005a9e;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📁 Contenuti Statici</h1>
+        <p>Questa pagina viene servita dalla cartella <code>static/</code></p>
+    </div>
+
+    <h2>🔗 File disponibili</h2>
+    
+    <div class="links">
+        <a href="/.well-known/apple-app-site-association">Apple App Site Association</a>
+        <a href="/demo.json">Demo JSON</a>
+        <a href="/images/logo.png">Logo (se presente)</a>
+        <a href="/">← Torna al Server Passkeys</a>
+    </div>
+
+    <h2>📋 Informazioni</h2>
+    <p>Il server Express ora serve contenuti statici da due cartelle:</p>
+    <ul>
+        <li><strong>public/</strong> - File dell'applicazione (client.js, etc.)</li>
+        <li><strong>static/</strong> - Contenuti statici generici</li>
+        <li><strong>static/.well-known/</strong> - File well-known con headers specifici</li>
+    </ul>
+
+    <h2>🔧 Configurazione</h2>
+    <pre><code>// Middleware Express configurato
+app.use(express.static('public'));
+
+// .well-known con headers specifici
+app.use('/.well-known', express.static('static/.well-known', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('apple-app-site-association')) {
+      res.setHeader('Content-Type', 'application/json');
+    }
+  }
+}));
+
+// Altri contenuti statici
+app.use(express.static('static'));</code></pre>
+
+    <h2>📱 Use Case</h2>
+    <p>Perfetto per servire:</p>
+    <ul>
+        <li>File Apple App Site Association per app iOS</li>
+        <li>Immagini, CSS, JavaScript statici</li>
+        <li>File di configurazione</li>
+        <li>Documentazione</li>
+        <li>Asset dell'applicazione</li>
+    </ul>
+</body>
+</html>

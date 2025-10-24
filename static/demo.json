@@ -1,0 +1,17 @@
+{
+  "name": "Passkeys Server Static Content",
+  "version": "1.0.0",
+  "description": "File JSON di esempio servito dalla cartella static",
+  "features": [
+    "Contenuti statici",
+    "Apple App Site Association",
+    "Headers personalizzati",
+    "Supporto .well-known"
+  ],
+  "endpoints": {
+    "static_files": "Serviti da /static",
+    "well_known": "Serviti da /.well-known",
+    "public_assets": "Serviti da /public"
+  },
+  "timestamp": "2024-10-24T00:00:00.000Z"
+}
