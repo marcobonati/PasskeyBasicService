@@ -31,8 +31,12 @@
     }
     .signup { background: #28a745; color: white; }
     .login { background: #007bff; color: white; }
+    .test { background: #ffc107; color: black; }
+    .logout { background: #dc3545; color: white; }
     .signup:hover { background: #218838; }
     .login:hover { background: #0056b3; }
+    .test:hover { background: #e0a800; }
+    .logout:hover { background: #c82333; }
     #status { 
       margin: 30px 0; 
       padding: 15px; 
@@ -65,6 +69,11 @@
   <div id="controls">
     <button onclick="register()" class="signup">🔑 REGISTRA PASSKEY</button>
     <button onclick="authenticate()" class="login">🔐 LOGIN PASSKEY</button>
+  </div>
+  
+  <div style="margin: 20px 0;">
+    <button onclick="getCurrentTime()" class="test">⏰ OTTIENI DATA (dopo login)</button>
+    <button onclick="logout()" class="logout">🚪 LOGOUT</button>
   </div>
   
   <div id="status" class="info">Pronto per l'uso</div>
