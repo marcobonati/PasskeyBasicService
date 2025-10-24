@@ -53,8 +53,38 @@
         <a href="/.well-known/apple-app-site-association">Apple App Site Association</a>
         <a href="/demo.json">Demo JSON</a>
         <a href="/images/logo.png">Logo (se presente)</a>
-        <a href="/">← Torna al Server Passkeys</a>
     </div>
+    
+    <div style="margin: 30px 0; text-align: center;">
+        <a href="/" onclick="navigateToHome(); return false;" style="display: inline-block; padding: 15px 30px; background: #28a745; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
+            🔐 Vai alla Pagina Passkeys
+        </a>
+        <br><br>
+        <button onclick="forceNavigateHome()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            🔄 Forza Navigazione Homepage
+        </button>
+    </div>
+    
+    <script>
+        function navigateToHome() {
+            console.log('Tentativo navigazione verso homepage...');
+            try {
+                window.location.href = '/';
+            } catch(e) {
+                console.error('Errore navigazione:', e);
+                forceNavigateHome();
+            }
+        }
+        
+        function forceNavigateHome() {
+            console.log('Forzando navigazione verso homepage...');
+            window.location.replace('/');
+        }
+        
+        // Test di verifica link
+        console.log('Pagina statica caricata. Link homepage:', window.location.origin + '/');
+        console.log('URL corrente:', window.location.href);
+    </script>
 
     <h2>📋 Informazioni</h2>
     <p>Il server Express ora serve contenuti statici da due cartelle:</p>

@@ -51,8 +51,8 @@ app.use('/.well-known', express.static('static/.well-known', {
   }
 }));
 
-// Servire altri contenuti statici
-app.use(express.static('static'));
+// NON servire contenuti statici sulla root - interferisce con la nostra pagina
+// app.use(express.static('static'));
 
 app.use(session({
   secret: 'your-secret-key-change-in-production',
@@ -76,50 +76,9 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// Endpoint di base
+// Endpoint di base - PAGINA SEMPLICE CON SOLO PASSKEYS
 app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Passkeys Server</title>
-      <meta charset="UTF-8">
-      <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        button { padding: 10px 20px; margin: 10px 0; font-size: 16px; }
-        .status { margin: 20px 0; padding: 10px; border-radius: 5px; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
-        .info { background-color: #d1ecf1; color: #0c5460; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>🔐 Passkeys Server</h1>
-        <p>Server Node.js con autenticazione WebAuthn/Passkeys</p>
-        
-        <div id="status" class="status info">
-          Caricamento librerie...
-        </div>
-        
-        <div id="controls" style="display: none;">
-          <input type="text" id="username" placeholder="Nome utente" value="testuser">
-          <br>
-          <button onclick="register()">🔑 Registra Passkey</button>
-          <button onclick="authenticate()">🔐 Autentica</button>
-          <button onclick="getCurrentTime()">⏰ Ottieni Orario</button>
-          <button onclick="logout()">🚪 Logout</button>
-        </div>
-        
-        <div id="result"></div>
-      </div>
-      
-      <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
-      <script src="/client.js"></script>
-    </body>
-    </html>
-  `);
+  res.sendFile('simple.html', { root: '.' });
 });
 
 // Endpoint per iniziare la registrazione
@@ -148,31 +107,31 @@ app.post('/register/begin', async (req, res) => {
       attestationType: 'none',
       excludeCredentials: [],
       authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: 'preferred',
         authenticatorAttachment: 'platform',
+        userVerification: 'preferred',
+        residentKey: 'preferred',
+        requireResidentKey: false,
       },
-      supportedAlgorithmIDs: [-7, -257], // ES256 e RS256
+      supportedAlgorithmIDs: [-7, -257],
     });
 
-    // Salva il challenge per la verifica
-    currentChallenges.set(userId, options.challenge);
-    
-    // Salva i dati temporanei dell'utente
-    req.session.tempUser = { userId, username };
-
-    console.log('Opzioni di registrazione generate:', {
+    // Salva la challenge e i dati dell'utente temporaneamente usando un timestamp come chiave
+    const challengeKey = `${Date.now()}_${userId}`;
+    currentChallenges.set(options.challenge, {
+      challenge: options.challenge,
       userId,
       username,
-      challengeLength: options.challenge.length,
-      rpID: options.rp.id,
-      userIdInOptions: options.user.id,
-      origin: requestOrigin
+      rpID: currentRpID,
+      timestamp: Date.now(),
+      key: challengeKey
     });
+
+    console.log('Opzioni generate:', { challenge: options.challenge, userId, username });
+    console.log('Challenge salvata con chiave:', options.challenge);
 
     res.json(options);
   } catch (error) {
-    console.error('Errore nella registrazione:', error);
+    console.error('Errore nella generazione delle opzioni di registrazione:', error);
     res.status(500).json({ error: 'Errore interno del server' });
   }
 });
@@ -181,50 +140,71 @@ app.post('/register/begin', async (req, res) => {
 app.post('/register/complete', async (req, res) => {
   try {
     const { credential } = req.body;
-    const tempUser = req.session.tempUser;
     
-    if (!tempUser) {
-      return res.status(400).json({ error: 'Sessione di registrazione non trovata' });
+    // Debug: mostra il challenge ricevuto nella response
+    console.log('Challenge dalla risposta credential:', credential.response?.clientDataJSON);
+    
+    // Trova la challenge corrispondente dalla risposta credential
+    let challengeData = null;
+    let challengeKey = null;
+    
+    // Decodifica clientDataJSON per ottenere la challenge
+    const clientDataJSON = JSON.parse(
+      Buffer.from(credential.response.clientDataJSON, 'base64').toString('utf8')
+    );
+    const challengeFromResponse = clientDataJSON.challenge;
+    
+    console.log('Challenge estratta dalla risposta:', challengeFromResponse);
+    console.log('Challenge disponibili:', Array.from(currentChallenges.keys()));
+    
+    // Cerca la challenge corrispondente
+    challengeData = currentChallenges.get(challengeFromResponse);
+    challengeKey = challengeFromResponse;
+    
+    if (!challengeData) {
+      console.log('Challenge non trovata. Challenges disponibili:', Array.from(currentChallenges.keys()));
+      return res.status(400).json({ error: 'Challenge non trovata o scaduta' });
     }
 
-    const expectedChallenge = currentChallenges.get(tempUser.userId);
-    
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: 'Challenge non valido' });
-    }
-
-    // Rileva automaticamente l'origine dalla richiesta
-    const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
-    const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
+    const { challenge, userId, username, rpID: currentRpID } = challengeData;
 
     const verification = await verifyRegistrationResponse({
       response: credential,
-      expectedChallenge,
-      expectedOrigin: requestOrigin || origin,
+      expectedChallenge: challenge,
+      expectedOrigin: req.get('origin') || `http://${currentRpID}:${PORT}`,
       expectedRPID: currentRpID,
+      requireUserVerification: false,
     });
 
     if (verification.verified && verification.registrationInfo) {
-      // Salva l'utente con le credenziali
-      users.set(tempUser.userId, {
-        id: tempUser.userId,
-        username: tempUser.username,
+      // Salva l'utente con le sue credenziali
+      users.set(userId, {
+        id: userId,
+        username,
         credentials: [{
           credentialID: verification.registrationInfo.credentialID,
           credentialPublicKey: verification.registrationInfo.credentialPublicKey,
           counter: verification.registrationInfo.counter,
+          credentialDeviceType: verification.registrationInfo.credentialDeviceType,
+          credentialBackedUp: verification.registrationInfo.credentialBackedUp,
         }],
         createdAt: new Date()
       });
 
-      // Pulisci i dati temporanei
-      currentChallenges.delete(tempUser.userId);
-      delete req.session.tempUser;
+      // Imposta la sessione come autenticata
+      req.session.authenticated = true;
+      req.session.userId = userId;
+      req.session.username = username;
+
+      // Rimuovi la challenge usata
+      currentChallenges.delete(challengeKey);
+
+      console.log('Registrazione completata con successo per:', username);
 
       res.json({ 
         verified: true, 
         message: 'Passkey registrata con successo!',
-        userId: tempUser.userId 
+        user: { id: userId, username }
       });
     } else {
       res.status(400).json({ error: 'Verifica della registrazione fallita' });
@@ -241,19 +221,40 @@ app.post('/authenticate/begin', async (req, res) => {
     // Rileva automaticamente l'origine dalla richiesta
     const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
     const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
-    
+
+    console.log('Richiesta autenticazione da:', { requestOrigin, currentRpID });
+
+    // Ottieni tutte le credenziali degli utenti registrati
+    const allowCredentials = [];
+    for (const user of users.values()) {
+      for (const cred of user.credentials) {
+        allowCredentials.push({
+          id: cred.credentialID,
+          type: 'public-key',
+          transports: ['internal', 'hybrid'],
+        });
+      }
+    }
+
     const options = await generateAuthenticationOptions({
       rpID: currentRpID,
-      allowCredentials: [],
+      allowCredentials,
       userVerification: 'preferred',
     });
 
-    // Salva il challenge per la verifica
-    req.session.currentChallenge = options.challenge;
+    // Salva la challenge per la verifica usando la challenge come chiave
+    currentChallenges.set(options.challenge, {
+      challenge: options.challenge,
+      rpID: currentRpID,
+      timestamp: Date.now()
+    });
+
+    console.log('Opzioni di autenticazione generate:', { challenge: options.challenge });
+    console.log('Challenge autenticazione salvata:', options.challenge);
 
     res.json(options);
   } catch (error) {
-    console.error('Errore nell\'autenticazione:', error);
+    console.error('Errore nella generazione delle opzioni di autenticazione:', error);
     res.status(500).json({ error: 'Errore interno del server' });
   }
 });
@@ -262,68 +263,108 @@ app.post('/authenticate/begin', async (req, res) => {
 app.post('/authenticate/complete', async (req, res) => {
   try {
     const { credential } = req.body;
-    const expectedChallenge = req.session.currentChallenge;
     
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: 'Challenge non valido' });
+    // Decodifica clientDataJSON per ottenere la challenge
+    const clientDataJSON = JSON.parse(
+      Buffer.from(credential.response.clientDataJSON, 'base64').toString('utf8')
+    );
+    const challengeFromResponse = clientDataJSON.challenge;
+    
+    console.log('Challenge autenticazione dalla risposta:', challengeFromResponse);
+    console.log('Challenge autenticazione disponibili:', Array.from(currentChallenges.keys()));
+    
+    // Trova la challenge corrispondente
+    const challengeData = currentChallenges.get(challengeFromResponse);
+    const challengeKey = challengeFromResponse;
+    
+    if (!challengeData) {
+      console.log('Challenge non trovata per autenticazione. Challenges disponibili:', Array.from(currentChallenges.keys()));
+      return res.status(400).json({ error: 'Challenge non trovata o scaduta' });
     }
 
-    // Rileva automaticamente l'origine dalla richiesta
-    const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
-    const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
+    const { challenge, rpID: currentRpID } = challengeData;
 
-    // Trova l'utente dalla credenziale
-    let authenticatedUser = null;
-    let matchedCredential = null;
+    // Trova l'utente con questa credenziale
+    let user = null;
+    let userCredential = null;
 
-    for (const [userId, userData] of users.entries()) {
-      const userCredential = userData.credentials.find(cred => 
-        Buffer.from(cred.credentialID).toString('base64url') === 
-        Buffer.from(credential.id, 'base64url').toString('base64url')
-      );
-      
-      if (userCredential) {
-        authenticatedUser = userData;
-        matchedCredential = userCredential;
-        break;
+    // Converti l'ID della credenziale da base64 a Uint8Array per il confronto
+    console.log('Credential ID ricevuto (raw):', credential.id);
+    console.log('Credential ID tipo:', typeof credential.id);
+    
+    // Proviamo diversi modi di decodificare l'ID
+    let credentialIdFromResponse;
+    try {
+      if (typeof credential.id === 'string') {
+        credentialIdFromResponse = new Uint8Array(Buffer.from(credential.id, 'base64'));
+      } else {
+        // Potrebbe essere già un array buffer o uint8array
+        credentialIdFromResponse = new Uint8Array(credential.id);
       }
+      console.log('Credential ID decodificato:', Array.from(credentialIdFromResponse));
+    } catch (error) {
+      console.error('Errore decodifica credential ID:', error);
+      return res.status(400).json({ error: 'ID credenziale non valido' });
     }
 
-    if (!authenticatedUser || !matchedCredential) {
+    console.log('Utenti registrati:', users.size);
+    for (const [userId, u] of users.entries()) {
+      console.log(`Utente ${userId} (${u.username}) ha ${u.credentials.length} credenziali`);
+      for (let i = 0; i < u.credentials.length; i++) {
+        const cred = u.credentials[i];
+        console.log(`  Credenziale ${i}:`, Array.from(new Uint8Array(cred.credentialID)));
+        
+        // Confronta le credenziali come Uint8Array
+        const storedCredentialId = new Uint8Array(cred.credentialID);
+        const isMatch = storedCredentialId.length === credentialIdFromResponse.length &&
+                       storedCredentialId.every((val, i) => val === credentialIdFromResponse[i]);
+        
+        console.log(`  Match: ${isMatch}`);
+        
+        if (isMatch) {
+          user = u;
+          userCredential = cred;
+          break;
+        }
+      }
+      if (user) break;
+    }
+
+    if (!user || !userCredential) {
       return res.status(400).json({ error: 'Credenziale non trovata' });
     }
 
     const verification = await verifyAuthenticationResponse({
       response: credential,
-      expectedChallenge,
-      expectedOrigin: requestOrigin || origin,
+      expectedChallenge: challenge,
+      expectedOrigin: req.get('origin') || `http://${currentRpID}:${PORT}`,
       expectedRPID: currentRpID,
       authenticator: {
-        credentialID: matchedCredential.credentialID,
-        credentialPublicKey: matchedCredential.credentialPublicKey,
-        counter: matchedCredential.counter,
+        credentialID: userCredential.credentialID,
+        credentialPublicKey: userCredential.credentialPublicKey,
+        counter: userCredential.counter,
       },
+      requireUserVerification: false,
     });
 
     if (verification.verified) {
       // Aggiorna il counter
-      matchedCredential.counter = verification.authenticationInfo.newCounter;
-      
-      // Salva la sessione autenticata
-      req.session.authenticated = true;
-      req.session.userId = authenticatedUser.id;
-      req.session.username = authenticatedUser.username;
+      userCredential.counter = verification.authenticationInfo.newCounter;
 
-      // Pulisci il challenge
-      delete req.session.currentChallenge;
+      // Imposta la sessione come autenticata
+      req.session.authenticated = true;
+      req.session.userId = user.id;
+      req.session.username = user.username;
+
+      // Rimuovi la challenge usata
+      currentChallenges.delete(challengeKey);
+
+      console.log('Autenticazione completata con successo per:', user.username);
 
       res.json({ 
         verified: true, 
         message: 'Autenticazione riuscita!',
-        user: {
-          id: authenticatedUser.id,
-          username: authenticatedUser.username
-        }
+        user: { id: user.id, username: user.username }
       });
     } else {
       res.status(400).json({ error: 'Verifica dell\'autenticazione fallita' });
@@ -334,42 +375,38 @@ app.post('/authenticate/complete', async (req, res) => {
   }
 });
 
-// Endpoint protetto per ottenere l'orario corrente
+// API protetta per ottenere l'orario corrente
 app.get('/api/current-time', requireAuth, (req, res) => {
-  const now = new Date();
-  const italianTime = now.toLocaleString('it-IT', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    weekday: 'long'
-  });
-
   res.json({
-    timestamp: now.getTime(),
-    isoString: now.toISOString(),
-    italianTime: italianTime,
-    timezone: 'Europe/Rome',
-    authenticatedUser: {
+    currentTime: new Date().toISOString(),
+    message: `Ciao ${req.session.username}! Questo è un endpoint protetto.`,
+    user: {
       id: req.session.userId,
       username: req.session.username
     },
-    message: 'Orario corrente ottenuto con successo!'
+    serverTime: {
+      timestamp: Date.now(),
+      locale: new Date().toLocaleString('it-IT'),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }
   });
 });
 
-// Endpoint per verificare lo stato dell'autenticazione
+// Endpoint per verificare lo stato di autenticazione
 app.get('/api/auth-status', (req, res) => {
-  res.json({
-    authenticated: !!req.session.authenticated,
-    user: req.session.authenticated ? {
-      id: req.session.userId,
-      username: req.session.username
-    } : null
-  });
+  if (req.session.authenticated && req.session.userId) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: req.session.userId,
+        username: req.session.username
+      }
+    });
+  } else {
+    res.json({
+      authenticated: false
+    });
+  }
 });
 
 // Endpoint per il logout
@@ -395,9 +432,4 @@ app.listen(PORT, () => {
   console.log(`   - GET  /api/current-time      - Ottieni orario (richiede auth)`);
   console.log(`   - GET  /api/auth-status       - Verifica stato autenticazione`);
   console.log(`   - POST /api/logout            - Effettua logout`);
-  console.log(`📁 Contenuti statici:`);
-  console.log(`   - /static/*                   - File dalla cartella static/`);
-  console.log(`   - /.well-known/*              - File well-known con headers specifici`);
-  console.log(`   - /demo.json                  - File JSON di esempio`);
-  console.log(`   - /images/*                   - Asset e immagini`);
 });
