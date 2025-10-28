@@ -279,8 +279,8 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Attestation Object length:', attestationObjectBuffer.length);
       
       // Decodifica CBOR per ottenere l'authenticatorData
-      const { decode } = await import('cbor');
-      const attestationObject = decode(attestationObjectBuffer);
+      const cbor = await import('cbor');
+      const attestationObject = cbor.decode(attestationObjectBuffer);
       console.log('- Attestation Object keys:', Object.keys(attestationObject));
       
       if (attestationObject.authData) {
