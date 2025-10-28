@@ -37,6 +37,12 @@ Inizia il processo di registrazione di un nuovo passkey.
 }
 ```
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| `username` | `string` | ✅ | Nome utente univoco per la registrazione. Deve essere una stringa non vuota. Verrà utilizzato come `userName` e `userDisplayName` nel processo WebAuthn. Esempi: `"mario.rossi"`, `"user@example.com"`, `"MarioRossi123"` |
+
 #### Response (200 OK)
 ```json
 {
@@ -101,6 +107,18 @@ Completa la registrazione del passkey con la risposta del client.
 }
 ```
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| `credential` | `object` | ✅ | Oggetto credenziale generato dal browser tramite `navigator.credentials.create()` |
+| `credential.id` | `string` | ✅ | ID della credenziale in formato Base64URL. Identifica univocamente questa credenziale |
+| `credential.rawId` | `string` | ✅ | ID raw della credenziale in formato ArrayBuffer codificato Base64URL |
+| `credential.type` | `string` | ✅ | Tipo di credenziale, sempre `"public-key"` per WebAuthn |
+| `credential.response` | `object` | ✅ | Oggetto response contenente i dati di registrazione |
+| `credential.response.clientDataJSON` | `string` | ✅ | Dati client in formato JSON codificati Base64URL. Contiene challenge, origin, type |
+| `credential.response.attestationObject` | `string` | ✅ | Oggetto attestazione codificato Base64URL. Contiene chiave pubblica e metadati dell'authenticator |
+
 #### Response (200 OK)
 ```json
 {
@@ -133,7 +151,17 @@ Inizia il processo di autenticazione con passkey.
 ```json
 {}
 ```
-*Corpo vuoto - rileva automaticamente le credenziali disponibili*
+
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| *Nessun parametro* | - | - | L'endpoint non richiede parametri in input. Il server rileva automaticamente tutte le credenziali registrate e le include nella response per permettere al client di selezionare quella appropriata |
+
+#### Note
+- Il corpo della richiesta può essere vuoto `{}` o omesso completamente
+- Il server utilizza l'header `Origin` o `Referer` per determinare l'RP ID appropriato
+- Tutte le credenziali registrate vengono incluse in `allowCredentials` nella response
 
 #### Response (200 OK)
 ```json
@@ -182,6 +210,20 @@ Completa l'autenticazione con la risposta del client.
 }
 ```
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| `credential` | `object` | ✅ | Oggetto credenziale generato dal browser tramite `navigator.credentials.get()` |
+| `credential.id` | `string` | ✅ | ID della credenziale utilizzata per l'autenticazione, in formato Base64URL |
+| `credential.rawId` | `string` | ✅ | ID raw della credenziale in formato ArrayBuffer codificato Base64URL |
+| `credential.type` | `string` | ✅ | Tipo di credenziale, sempre `"public-key"` per WebAuthn |
+| `credential.response` | `object` | ✅ | Oggetto response contenente i dati di autenticazione |
+| `credential.response.clientDataJSON` | `string` | ✅ | Dati client in formato JSON codificati Base64URL. Contiene challenge, origin, type dell'operazione |
+| `credential.response.authenticatorData` | `string` | ✅ | Dati dell'authenticator codificati Base64URL. Contiene RP ID hash, flags, counter |
+| `credential.response.signature` | `string` | ✅ | Firma digitale della challenge codificata Base64URL, generata con la chiave privata |
+| `credential.response.userHandle` | `string` | ❓ | Handle utente codificato Base64URL. Può essere `null` o vuoto. Utilizzato per identificare l'utente |
+
 #### Response (200 OK)
 ```json
 {
@@ -216,10 +258,22 @@ Completa l'autenticazione con la risposta del client.
 
 Restituisce l'orario corrente del server. Richiede autenticazione valida.
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| *Nessun parametro body* | - | - | Endpoint GET senza body |
+
 #### Headers Richiesti
-```
-Cookie: connect.sid=session-id
-```
+
+| Header | Tipo | Obbligatorio | Descrizione |
+|--------|------|--------------|-------------|
+| `Cookie` | `string` | ✅ | Cookie di sessione con formato `connect.sid=session-id`. Generato automaticamente dopo login successful. Il browser lo invia automaticamente se `credentials: 'include'` è specificato nella fetch |
+
+#### Note di Autenticazione
+- Richiede una sessione valida ottenuta tramite `/authenticate/complete`
+- Il middleware `requireAuth` verifica `req.session.authenticated === true`
+- Se non autenticato, restituisce errore 401
 
 #### Response (200 OK)
 ```json
@@ -253,6 +307,23 @@ Cookie: connect.sid=session-id
 
 Verifica lo stato di autenticazione dell'utente corrente.
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| *Nessun parametro body* | - | - | Endpoint GET senza body |
+
+#### Headers Opzionali
+
+| Header | Tipo | Obbligatorio | Descrizione |
+|--------|------|--------------|-------------|
+| `Cookie` | `string` | ❓ | Cookie di sessione con formato `connect.sid=session-id`. Se presente e valido, restituisce info utente autenticato. Se assente o invalido, restituisce `authenticated: false` |
+
+#### Note
+- Non richiede autenticazione (a differenza di `/api/current-time`)
+- Utile per verificare stato login prima di fare altre chiamate
+- Safe endpoint - non espone informazioni sensibili se non autenticato
+
 #### Response (200 OK) - Autenticato
 ```json
 {
@@ -282,6 +353,23 @@ Effettua il logout dell'utente distruggendo la sessione.
 {}
 ```
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| *Nessun parametro body* | - | - | Il corpo può essere vuoto `{}` o omesso completamente |
+
+#### Headers Richiesti
+
+| Header | Tipo | Obbligatorio | Descrizione |
+|--------|------|--------------|-------------|
+| `Cookie` | `string` | ✅ | Cookie di sessione con formato `connect.sid=session-id`. Identifica la sessione da distruggere. Dopo il logout questo cookie diventerà invalido |
+
+#### Note
+- Distrugge completamente la sessione server-side
+- Dopo il logout, tutti gli endpoint protetti restituiranno 401
+- Il browser dovrebbe rimuovere automaticamente il cookie di sessione
+
 #### Response (200 OK)
 ```json
 {
@@ -304,6 +392,23 @@ Effettua il logout dell'utente distruggendo la sessione.
 
 Serve la pagina di test principale con interfaccia semplificata per testare i passkeys.
 
+#### Parametri Input
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|--------------|-------------|
+| *Nessun parametro* | - | - | Endpoint GET che serve file statico |
+
+#### Query Parameters
+
+| Parametro | Tipo | Obbligatorio | Descrizione |
+|-----------|------|--------------|-------------|
+| *Nessuno* | - | - | Non accetta query parameters |
+
+#### Note
+- Serve il file `simple.html` dalla directory root del progetto
+- Contiene interfaccia web completa per testing manuale dei passkeys
+- Include JavaScript client-side per chiamare le API WebAuthn
+
 #### Response
 Restituisce il file `simple.html` con:
 - Form di registrazione passkey
@@ -314,7 +419,49 @@ Restituisce il file `simple.html` con:
 
 ---
 
-## 💻 Esempi di Utilizzo
+## � **Formati di Codifica e Validazione**
+
+### Base64URL Encoding
+Tutti i dati binari nelle API WebAuthn utilizzano la codifica **Base64URL** (RFC 4648 Section 5):
+- Caratteri: `A-Z`, `a-z`, `0-9`, `-`, `_`
+- No padding `=`
+- URL-safe (può essere usato in URL senza encoding)
+
+#### Esempi di Campi Base64URL:
+```javascript
+// Challenge (32 byte random)
+"challenge": "kZhLGKkiHKkeNWjnKjVHqY8bO4RkwrJ8_2E5BhkYFuc"
+
+// Credential ID
+"id": "AeOW5QP_c_M3gR8pJIGPEtQKkJrFQ9VvYZJMZ2YN8_Q"
+
+// ClientDataJSON (decodifica in JSON)
+"clientDataJSON": "eyJ0eXBlIjoiL..."
+// Decodificato: {"type":"webauthn.create","challenge":"...","origin":"https://..."}
+```
+
+### Validazione Input
+
+#### Username (Registrazione)
+- **Lunghezza**: 1-64 caratteri
+- **Caratteri permessi**: Lettere, numeri, `.`, `@`, `_`, `-`
+- **Esempi validi**: `mario.rossi`, `user@example.com`, `user_123`
+- **Esempi non validi**: `""`, `null`, `undefined`, stringhe con spazi
+
+#### Credential ID
+- **Formato**: Base64URL string
+- **Lunghezza**: Tipicamente 32-64 byte (44-86 caratteri codificati)
+- **Deve corrispondere** a una credenziale precedentemente registrata
+
+#### Challenge
+- **Formato**: Base64URL string  
+- **Lunghezza**: Esattamente 32 byte (43 caratteri codificati)
+- **Validità**: 5 minuti dalla generazione
+- **Uso singolo**: Ogni challenge può essere utilizzata una sola volta
+
+---
+
+## �💻 Esempi di Utilizzo
 
 ### Registrazione Passkey (JavaScript)
 
