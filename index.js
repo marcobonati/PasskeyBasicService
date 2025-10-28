@@ -202,7 +202,13 @@ app.post('/register/begin', async (req, res) => {
       key: challengeKey
     });
 
-    console.log('Opzioni generate:', { challenge: options.challenge, userId, username });
+    console.log('Opzioni generate:', { 
+      challenge: options.challenge, 
+      userId, 
+      username,
+      rpID: options.rp.id,  // ← Log dell'RP ID effettivamente usato
+      rpName: options.rp.name 
+    });
     console.log('Challenge salvata con chiave:', options.challenge);
 
     res.json(options);
@@ -252,6 +258,58 @@ app.post('/register/complete', async (req, res) => {
     console.log('- Environment RP_ID:', process.env.RP_ID);
     console.log('- Credential response keys:', Object.keys(credential.response));
     console.log('- Credential ID:', credential.id);
+
+    // 🔍 Decode clientDataJSON per vedere cosa ha inviato il client
+    try {
+      const clientDataJSON = JSON.parse(
+        Buffer.from(credential.response.clientDataJSON, 'base64').toString('utf8')
+      );
+      console.log('- Client Data from iOS:', {
+        type: clientDataJSON.type,
+        origin: clientDataJSON.origin,
+        challenge: clientDataJSON.challenge
+      });
+    } catch (e) {
+      console.log('- Errore decode clientDataJSON:', e.message);
+    }
+
+    // 🔍 Decode attestationObject per vedere RP ID hash
+    try {
+      const attestationObjectBuffer = Buffer.from(credential.response.attestationObject, 'base64');
+      console.log('- Attestation Object length:', attestationObjectBuffer.length);
+      
+      // Decodifica CBOR per ottenere l'authenticatorData
+      const { decode } = await import('cbor');
+      const attestationObject = decode(attestationObjectBuffer);
+      console.log('- Attestation Object keys:', Object.keys(attestationObject));
+      
+      if (attestationObject.authData) {
+        const authData = Buffer.from(attestationObject.authData);
+        console.log('- AuthData length:', authData.length);
+        
+        // I primi 32 byte dell'authData sono l'RP ID hash
+        const rpIDHashFromClient = authData.subarray(0, 32);
+        console.log('- RP ID Hash from client (hex):', rpIDHashFromClient.toString('hex'));
+        
+        // Calcola l'hash aspettato
+        const crypto = await import('crypto');
+        const expectedRpIDHash = crypto.createHash('sha256').update(finalRpID).digest();
+        console.log('- Expected RP ID Hash (hex):', expectedRpIDHash.toString('hex'));
+        console.log('- RP ID used for expected hash:', finalRpID);
+        console.log('- RP ID Hash match:', rpIDHashFromClient.equals(expectedRpIDHash));
+        
+        // Anche test con diversi RP ID possibili
+        const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', process.env.RP_ID || 'localhost'];
+        for (const testRpID of possibleRpIDs) {
+          const testHash = crypto.createHash('sha256').update(testRpID).digest();
+          if (rpIDHashFromClient.equals(testHash)) {
+            console.log(`✅ MATCH FOUND! Client was using RP ID: "${testRpID}"`);
+          }
+        }
+      }
+    } catch (e) {
+      console.log('- Errore decode attestationObject:', e.message);
+    }
 
     // 🔧 FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
     const finalRpID = process.env.NODE_ENV === 'production' ? 
