@@ -248,27 +248,32 @@ app.post('/register/complete', async (req, res) => {
     console.log('- Challenge expected:', challenge);
     console.log('- Origin from request:', req.get('origin'));
     console.log('- Referer from request:', req.get('referer'));
-    console.log('- Current RP ID:', currentRpID);
+    console.log('- Current RP ID from challenge:', currentRpID);
+    console.log('- Environment RP_ID:', process.env.RP_ID);
     console.log('- Credential response keys:', Object.keys(credential.response));
     console.log('- Credential ID:', credential.id);
 
-    const expectedOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '') || `http://${currentRpID}:${PORT}`;
-    console.log('- Expected origin final:', expectedOrigin);
+    // 🔧 FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
+    const finalRpID = process.env.NODE_ENV === 'production' ? 
+                      process.env.RP_ID : 
+                      currentRpID;
 
-    // 🔧 Fix per Render: Usa sempre l'origin dalle env vars se disponibile
-    const finalExpectedOrigin = process.env.ORIGIN || 
-                               req.get('origin') || 
-                               req.get('referer')?.split('/').slice(0, 3).join('/') ||
-                               `${protocol}://${currentRpID}${portSuffix}`;
+    // 🔧 FORCE ORIGIN: Usa sempre l'origin dall'environment in produzione  
+    const finalExpectedOrigin = process.env.NODE_ENV === 'production' ?
+                               process.env.ORIGIN :
+                               (req.get('origin') || 
+                                req.get('referer')?.split('/').slice(0, 3).join('/') ||
+                                `${protocol}://${currentRpID}${portSuffix}`);
     
-    console.log('- Final expected origin (fixed):', finalExpectedOrigin);
+    console.log('- Final RP ID for verification:', finalRpID);
+    console.log('- Final expected origin for verification:', finalExpectedOrigin);
 
     try {
       const verification = await verifyRegistrationResponse({
         response: credential,
         expectedChallenge: challenge,
         expectedOrigin: finalExpectedOrigin,
-        expectedRPID: currentRpID,
+        expectedRPID: finalRpID,
         requireUserVerification: false,
       });
 
@@ -315,7 +320,7 @@ app.post('/register/complete', async (req, res) => {
       console.error('- Expected params:', {
         challenge,
         expectedOrigin: finalExpectedOrigin,
-        expectedRPID: currentRpID,
+        expectedRPID: finalRpID,
         requireUserVerification: false
       });
       
@@ -460,8 +465,8 @@ app.post('/authenticate/complete', async (req, res) => {
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: challenge,
-      expectedOrigin: process.env.ORIGIN || req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`,
-      expectedRPID: currentRpID,
+      expectedOrigin: process.env.NODE_ENV === 'production' ? process.env.ORIGIN : (req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`),
+      expectedRPID: process.env.NODE_ENV === 'production' ? process.env.RP_ID : currentRpID,
       authenticator: {
         credentialID: userCredential.credentialID,
         credentialPublicKey: userCredential.credentialPublicKey,
