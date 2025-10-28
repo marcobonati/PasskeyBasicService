@@ -158,13 +158,25 @@ app.post('/register/begin', async (req, res) => {
     const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
     const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
     
-    console.log('Richiesta registrazione da:', { requestOrigin, currentRpID });
+    console.log('🔍 Debug register/begin:');
+    console.log('- Request origin:', requestOrigin);
+    console.log('- Request referer:', req.get('referer'));
+    console.log('- Calculated RP ID:', currentRpID);
+    console.log('- Environment RP_ID:', process.env.RP_ID);
+    console.log('- Default rpID:', rpID);
+    
+    // 🔧 Force RP ID in production
+    const finalRpID = process.env.NODE_ENV === 'production' ? 
+                      (process.env.RP_ID || currentRpID) : 
+                      currentRpID;
+    
+    console.log('- Final RP ID for registration:', finalRpID);
 
     const userId = uuidv4();
     
     const options = await generateRegistrationOptions({
       rpName,
-      rpID: currentRpID,
+      rpID: finalRpID,
       userID: userId, // Usa direttamente la stringa UUID
       userName: username,
       userDisplayName: username,
@@ -185,7 +197,7 @@ app.post('/register/begin', async (req, res) => {
       challenge: options.challenge,
       userId,
       username,
-      rpID: currentRpID,
+      rpID: finalRpID, // Usa l'RP ID finale
       timestamp: Date.now(),
       key: challengeKey
     });
@@ -328,7 +340,12 @@ app.post('/authenticate/begin', async (req, res) => {
     const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
     const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
 
-    console.log('Richiesta autenticazione da:', { requestOrigin, currentRpID });
+    // 🔧 Force RP ID in production  
+    const finalRpID = process.env.NODE_ENV === 'production' ? 
+                      (process.env.RP_ID || currentRpID) : 
+                      currentRpID;
+
+    console.log('Richiesta autenticazione da:', { requestOrigin, currentRpID, finalRpID });
 
     // Ottieni tutte le credenziali degli utenti registrati
     const allowCredentials = [];
@@ -343,7 +360,7 @@ app.post('/authenticate/begin', async (req, res) => {
     }
 
     const options = await generateAuthenticationOptions({
-      rpID: currentRpID,
+      rpID: finalRpID,
       allowCredentials,
       userVerification: 'preferred',
     });
@@ -351,7 +368,7 @@ app.post('/authenticate/begin', async (req, res) => {
     // Salva la challenge per la verifica usando la challenge come chiave
     currentChallenges.set(options.challenge, {
       challenge: options.challenge,
-      rpID: currentRpID,
+      rpID: finalRpID,
       timestamp: Date.now()
     });
 
