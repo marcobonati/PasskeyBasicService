@@ -219,15 +219,36 @@ app.post('/register/complete', async (req, res) => {
 
     const { challenge, userId, username, rpID: currentRpID } = challengeData;
 
-    const verification = await verifyRegistrationResponse({
-      response: credential,
-      expectedChallenge: challenge,
-      expectedOrigin: req.get('origin') || `http://${currentRpID}:${PORT}`,
-      expectedRPID: currentRpID,
-      requireUserVerification: false,
-    });
+    console.log('🔍 Debug verifyRegistrationResponse:');
+    console.log('- Challenge expected:', challenge);
+    console.log('- Origin from request:', req.get('origin'));
+    console.log('- Referer from request:', req.get('referer'));
+    console.log('- Current RP ID:', currentRpID);
+    console.log('- Credential response keys:', Object.keys(credential.response));
+    console.log('- Credential ID:', credential.id);
 
-    if (verification.verified && verification.registrationInfo) {
+    const expectedOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '') || `http://${currentRpID}:${PORT}`;
+    console.log('- Expected origin final:', expectedOrigin);
+
+    // 🔧 Fix per Render: Usa l'origin della richiesta se disponibile
+    const finalExpectedOrigin = req.get('origin') || 
+                               req.get('referer')?.split('/').slice(0, 3).join('/') ||
+                               `${protocol}://${currentRpID}${portSuffix}`;
+    
+    console.log('- Final expected origin (fixed):', finalExpectedOrigin);
+
+    try {
+      const verification = await verifyRegistrationResponse({
+        response: credential,
+        expectedChallenge: challenge,
+        expectedOrigin: finalExpectedOrigin,
+        expectedRPID: currentRpID,
+        requireUserVerification: false,
+      });
+
+      console.log('✅ Verification successful:', verification.verified);
+      
+      if (verification.verified && verification.registrationInfo) {
       // Salva l'utente con le sue credenziali
       users.set(userId, {
         id: userId,
@@ -388,7 +409,7 @@ app.post('/authenticate/complete', async (req, res) => {
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: challenge,
-      expectedOrigin: req.get('origin') || `http://${currentRpID}:${PORT}`,
+      expectedOrigin: req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`,
       expectedRPID: currentRpID,
       authenticator: {
         credentialID: userCredential.credentialID,

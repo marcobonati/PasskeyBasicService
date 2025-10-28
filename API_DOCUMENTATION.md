@@ -565,12 +565,37 @@ curl -X POST http://localhost:3000/api/logout \
 ### Variabili Environment Produzione
 
 ```bash
+# Render.com / Heroku
 export NODE_ENV=production
 export HTTPS=true
+export RP_ID=yourdomain.onrender.com
+export ORIGIN=https://yourdomain.onrender.com
+
+# Altri cloud providers
+export NODE_ENV=production
+export HTTPS=true  
 export RP_ID=yourdomain.com
 export ORIGIN=https://yourdomain.com
 export PORT=443
 ```
+
+### ⚠️ Fix per Errori Common
+
+#### **Errore Origin Mismatch su Cloud**
+```
+Error: Unexpected registration response origin "https://app.onrender.com", 
+expected "http://app.onrender.com:10000"
+```
+
+**Soluzione**: Configurare correttamente le environment variables:
+```bash
+NODE_ENV=production
+HTTPS=true
+RP_ID=app.onrender.com  
+ORIGIN=https://app.onrender.com
+```
+
+Il server rileva automaticamente l'origin dalla richiesta HTTP per evitare mismatch.
 
 ### Headers di Sicurezza
 
