@@ -249,40 +249,60 @@ app.post('/register/complete', async (req, res) => {
       console.log('✅ Verification successful:', verification.verified);
       
       if (verification.verified && verification.registrationInfo) {
-      // Salva l'utente con le sue credenziali
-      users.set(userId, {
-        id: userId,
-        username,
-        credentials: [{
-          credentialID: verification.registrationInfo.credentialID,
-          credentialPublicKey: verification.registrationInfo.credentialPublicKey,
-          counter: verification.registrationInfo.counter,
-          credentialDeviceType: verification.registrationInfo.credentialDeviceType,
-          credentialBackedUp: verification.registrationInfo.credentialBackedUp,
-        }],
-        createdAt: new Date()
+        // Salva l'utente con le sue credenziali
+        users.set(userId, {
+          id: userId,
+          username,
+          credentials: [{
+            credentialID: verification.registrationInfo.credentialID,
+            credentialPublicKey: verification.registrationInfo.credentialPublicKey,
+            counter: verification.registrationInfo.counter,
+            credentialDeviceType: verification.registrationInfo.credentialDeviceType,
+            credentialBackedUp: verification.registrationInfo.credentialBackedUp,
+          }],
+          createdAt: new Date()
+        });
+
+        // Imposta la sessione come autenticata
+        req.session.authenticated = true;
+        req.session.userId = userId;
+        req.session.username = username;
+
+        // Rimuovi la challenge usata
+        currentChallenges.delete(challengeKey);
+
+        console.log('Registrazione completata con successo per:', username);
+
+        res.json({ 
+          verified: true, 
+          message: 'Passkey registrata con successo!',
+          user: { id: userId, username }
+        });
+      } else {
+        res.status(400).json({ error: 'Verifica della registrazione fallita' });
+      }
+
+    } catch (verificationError) {
+      console.error('❌ Errore durante verifyRegistrationResponse:');
+      console.error('- Message:', verificationError.message);
+      console.error('- Stack:', verificationError.stack);
+      console.error('- Expected params:', {
+        challenge,
+        expectedOrigin: finalExpectedOrigin,
+        expectedRPID: currentRpID,
+        requireUserVerification: false
       });
-
-      // Imposta la sessione come autenticata
-      req.session.authenticated = true;
-      req.session.userId = userId;
-      req.session.username = username;
-
-      // Rimuovi la challenge usata
+      
+      // Rimuovi la challenge anche in caso di errore
       currentChallenges.delete(challengeKey);
-
-      console.log('Registrazione completata con successo per:', username);
-
-      res.json({ 
-        verified: true, 
-        message: 'Passkey registrata con successo!',
-        user: { id: userId, username }
+      
+      res.status(500).json({ 
+        error: 'Errore nella verifica della registrazione',
+        details: verificationError.message 
       });
-    } else {
-      res.status(400).json({ error: 'Verifica della registrazione fallita' });
     }
   } catch (error) {
-    console.error('Errore nella verifica della registrazione:', error);
+    console.error('🚨 Errore generale nell\'endpoint register/complete:', error);
     res.status(500).json({ error: 'Errore interno del server' });
   }
 });
