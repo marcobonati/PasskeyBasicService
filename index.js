@@ -9,6 +9,9 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 
+// Auto-configurazione per Render
+import './config/render.js';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -27,6 +30,16 @@ console.log(`   - RP ID: ${rpID}`);
 console.log(`   - Origin: ${origin}`);
 console.log(`   - Produzione: ${isProduction}`);
 console.log(`   - HTTPS: ${isHttps}`);
+
+// 🐛 Debug environment variables
+console.log(`🐛 Environment Variables Debug:`);
+console.log(`   - NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   - HTTPS: ${process.env.HTTPS}`);
+console.log(`   - RP_ID: ${process.env.RP_ID}`);
+console.log(`   - ORIGIN: ${process.env.ORIGIN}`);
+console.log(`   - PORT: ${process.env.PORT}`);
+console.log(`   - Protocol calculated: ${protocol}`);
+console.log(`   - Port suffix: ${portSuffix}`);
 
 // Storage in memoria per demo (in produzione usare un database)
 const users = new Map();
@@ -230,8 +243,9 @@ app.post('/register/complete', async (req, res) => {
     const expectedOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '') || `http://${currentRpID}:${PORT}`;
     console.log('- Expected origin final:', expectedOrigin);
 
-    // 🔧 Fix per Render: Usa l'origin della richiesta se disponibile
-    const finalExpectedOrigin = req.get('origin') || 
+    // 🔧 Fix per Render: Usa sempre l'origin dalle env vars se disponibile
+    const finalExpectedOrigin = process.env.ORIGIN || 
+                               req.get('origin') || 
                                req.get('referer')?.split('/').slice(0, 3).join('/') ||
                                `${protocol}://${currentRpID}${portSuffix}`;
     
@@ -429,7 +443,7 @@ app.post('/authenticate/complete', async (req, res) => {
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: challenge,
-      expectedOrigin: req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`,
+      expectedOrigin: process.env.ORIGIN || req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`,
       expectedRPID: currentRpID,
       authenticator: {
         credentialID: userCredential.credentialID,
