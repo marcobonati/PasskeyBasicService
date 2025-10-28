@@ -279,7 +279,7 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Attestation Object length:', attestationObjectBuffer.length);
       
       // Decodifica CBOR per ottenere l'authenticatorData
-      const cbor = await import('cbor');
+      const cbor = require('cbor');
       const attestationObject = cbor.decode(attestationObjectBuffer);
       console.log('- Attestation Object keys:', Object.keys(attestationObject));
       
@@ -292,7 +292,7 @@ app.post('/register/complete', async (req, res) => {
         console.log('- RP ID Hash from client (hex):', rpIDHashFromClient.toString('hex'));
         
         // Calcola l'hash aspettato
-        const crypto = await import('crypto');
+        const crypto = require('crypto');
         const expectedRpIDHash = crypto.createHash('sha256').update(finalRpID).digest();
         console.log('- Expected RP ID Hash (hex):', expectedRpIDHash.toString('hex'));
         console.log('- RP ID used for expected hash:', finalRpID);
@@ -309,6 +309,7 @@ app.post('/register/complete', async (req, res) => {
       }
     } catch (e) {
       console.log('- Errore decode attestationObject:', e.message);
+      console.log('- Stack:', e.stack);
     }
 
     // 🔧 FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
