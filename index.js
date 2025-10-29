@@ -273,43 +273,28 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Errore decode clientDataJSON:', e.message);
     }
 
-    // 🔍 Decode attestationObject per vedere RP ID hash
+    // 🔍 Debug RP ID hash mismatch (senza CBOR)
     try {
-      const attestationObjectBuffer = Buffer.from(credential.response.attestationObject, 'base64');
-      console.log('- Attestation Object length:', attestationObjectBuffer.length);
+      console.log('- Final RP ID for verification:', finalRpID);
+      console.log('- Final expected origin for verification:', finalExpectedOrigin);
       
-      // Decodifica CBOR per ottenere l'authenticatorData
-      const cborModule = await import('cbor');
-      const attestationObject = cborModule.decode(attestationObjectBuffer);
-      console.log('- Attestation Object keys:', Object.keys(attestationObject));
+      // Calcola gli hash per i possibili RP ID
+      const crypto = await import('crypto');
+      const expectedRpIDHash = crypto.createHash('sha256').update(finalRpID).digest('hex');
+      console.log('- Expected RP ID Hash (hex):', expectedRpIDHash);
       
-      if (attestationObject.authData) {
-        const authData = Buffer.from(attestationObject.authData);
-        console.log('- AuthData length:', authData.length);
-        
-        // I primi 32 byte dell'authData sono l'RP ID hash
-        const rpIDHashFromClient = authData.subarray(0, 32);
-        console.log('- RP ID Hash from client (hex):', rpIDHashFromClient.toString('hex'));
-        
-        // Calcola l'hash aspettato
-        const crypto = await import('crypto');
-        const expectedRpIDHash = crypto.createHash('sha256').update(finalRpID).digest();
-        console.log('- Expected RP ID Hash (hex):', expectedRpIDHash.toString('hex'));
-        console.log('- RP ID used for expected hash:', finalRpID);
-        console.log('- RP ID Hash match:', rpIDHashFromClient.equals(expectedRpIDHash));
-        
-        // Anche test con diversi RP ID possibili
-        const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', process.env.RP_ID || 'localhost'];
-        for (const testRpID of possibleRpIDs) {
-          const testHash = crypto.createHash('sha256').update(testRpID).digest();
-          if (rpIDHashFromClient.equals(testHash)) {
-            console.log(`✅ MATCH FOUND! Client was using RP ID: "${testRpID}"`);
-          }
-        }
-      }
+      console.log('🔍 Possibili RP ID che il client potrebbe stare usando:');
+      const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', '127.0.0.1', 'localhost:3000'];
+      possibleRpIDs.forEach(testRpID => {
+        const testHash = crypto.createHash('sha256').update(testRpID).digest('hex');
+        console.log(`   - ${testRpID}: ${testHash}`);
+      });
+      
+      console.log('💡 Se vedi "Unexpected RP ID hash", il client iOS probabilmente usa un RP ID diverso da quello aspettato.');
+      console.log('   Verifica che il tuo client iOS usi: relyingPartyIdentifier = "passkeybasicservice.onrender.com"');
+      
     } catch (e) {
-      console.log('- Errore decode attestationObject:', e.message);
-      console.log('- Stack:', e.stack);
+      console.log('- Errore debug hash:', e.message);
     }
 
     // 🔧 FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
