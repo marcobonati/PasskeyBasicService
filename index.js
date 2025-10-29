@@ -273,7 +273,19 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Errore decode clientDataJSON:', e.message);
     }
 
-    // 🔍 Debug RP ID hash mismatch (senza CBOR)
+    // � FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
+    const finalRpID = process.env.NODE_ENV === 'production' ? 
+                      process.env.RP_ID : 
+                      currentRpID;
+
+    // 🔧 FORCE ORIGIN: Usa sempre l'origin dall'environment in produzione  
+    const finalExpectedOrigin = process.env.NODE_ENV === 'production' ?
+                               process.env.ORIGIN :
+                               (req.get('origin') || 
+                                req.get('referer')?.split('/').slice(0, 3).join('/') ||
+                                `${protocol}://${currentRpID}${portSuffix}`);
+
+    // �🔍 Debug RP ID hash mismatch (senza CBOR)
     try {
       console.log('- Final RP ID for verification:', finalRpID);
       console.log('- Final expected origin for verification:', finalExpectedOrigin);
@@ -296,18 +308,6 @@ app.post('/register/complete', async (req, res) => {
     } catch (e) {
       console.log('- Errore debug hash:', e.message);
     }
-
-    // 🔧 FORCE RP ID: Usa sempre l'RP ID dall'environment in produzione
-    const finalRpID = process.env.NODE_ENV === 'production' ? 
-                      process.env.RP_ID : 
-                      currentRpID;
-
-    // 🔧 FORCE ORIGIN: Usa sempre l'origin dall'environment in produzione  
-    const finalExpectedOrigin = process.env.NODE_ENV === 'production' ?
-                               process.env.ORIGIN :
-                               (req.get('origin') || 
-                                req.get('referer')?.split('/').slice(0, 3).join('/') ||
-                                `${protocol}://${currentRpID}${portSuffix}`);
     
     console.log('- Final RP ID for verification:', finalRpID);
     console.log('- Final expected origin for verification:', finalExpectedOrigin);
