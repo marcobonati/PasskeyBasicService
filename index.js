@@ -279,8 +279,8 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Attestation Object length:', attestationObjectBuffer.length);
       
       // Decodifica CBOR per ottenere l'authenticatorData
-      const cbor = require('cbor');
-      const attestationObject = cbor.decode(attestationObjectBuffer);
+      const cborModule = await import('cbor');
+      const attestationObject = cborModule.decode(attestationObjectBuffer);
       console.log('- Attestation Object keys:', Object.keys(attestationObject));
       
       if (attestationObject.authData) {
@@ -292,7 +292,7 @@ app.post('/register/complete', async (req, res) => {
         console.log('- RP ID Hash from client (hex):', rpIDHashFromClient.toString('hex'));
         
         // Calcola l'hash aspettato
-        const crypto = require('crypto');
+        const crypto = await import('crypto');
         const expectedRpIDHash = crypto.createHash('sha256').update(finalRpID).digest();
         console.log('- Expected RP ID Hash (hex):', expectedRpIDHash.toString('hex'));
         console.log('- RP ID used for expected hash:', finalRpID);
