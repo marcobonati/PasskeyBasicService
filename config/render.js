@@ -14,8 +14,8 @@ export const renderConfig = {
       return {
         NODE_ENV: 'production',
         HTTPS: 'true',
-        RP_ID: `${serviceName}.onrender.com`,
-        ORIGIN: `https://${serviceName}.onrender.com`,
+        RP_ID: `marcobonati.it`,
+        ORIGIN: `https://eurodig.marcobonati.it`,
         PORT: process.env.PORT || 10000
       };
     }
