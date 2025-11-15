@@ -298,7 +298,7 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Expected RP ID Hash (hex):', expectedRpIDHash);
       
       console.log('🔍 Possibili RP ID che il client potrebbe stare usando:');
-      const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', '127.0.0.1', 'localhost:3000'];
+      const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', '127.0.0.1', 'localhost:3000', 'marcobonati.it];
       possibleRpIDs.forEach(testRpID => {
         const testHash = crypto.createHash('sha256').update(testRpID).digest('hex');
         console.log(`   - ${testRpID}: ${testHash}`);
