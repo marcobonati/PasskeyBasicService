@@ -60,6 +60,8 @@ app.use(cors({
       'http://localhost:3000',
       'https://localhost:3000',
       origin, // L'origin configurato
+      'https://eurodig.marcobonati.it',
+      'https://marcobonati.it', // <--- AGGIUNTO ANCHE IL DOMINIO PRINCIPALE
     ];
     
     // Permetti localhost su qualsiasi porta

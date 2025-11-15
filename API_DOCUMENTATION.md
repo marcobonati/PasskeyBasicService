@@ -67,7 +67,7 @@ Inizia il processo di registrazione di un nuovo passkey.
     "userVerification": "preferred",
     "residentKey": "preferred",
     "requireResidentKey": false
-  },
+  },ø
   "attestation": "none"
 }
 ```
