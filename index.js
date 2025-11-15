@@ -167,10 +167,8 @@ app.post('/register/begin', async (req, res) => {
     console.log('- Environment RP_ID:', process.env.RP_ID);
     console.log('- Default rpID:', rpID);
     
-    // 🔧 Force RP ID in production
-    const finalRpID = process.env.NODE_ENV === 'production' ? 
-                      (process.env.RP_ID || currentRpID) : 
-                      currentRpID;
+    // 🔧 Force RP ID in production: usa sempre process.env.RP_ID se presente
+    const finalRpID = process.env.RP_ID || currentRpID;
     
     console.log('- Final RP ID for registration:', finalRpID);
 
@@ -280,12 +278,8 @@ app.post('/register/complete', async (req, res) => {
                       process.env.RP_ID : 
                       currentRpID;
 
-    // 🔧 FORCE ORIGIN: Usa sempre l'origin dall'environment in produzione  
-    const finalExpectedOrigin = process.env.NODE_ENV === 'production' ?
-                               process.env.ORIGIN :
-                               (req.get('origin') || 
-                                req.get('referer')?.split('/').slice(0, 3).join('/') ||
-                                `${protocol}://${currentRpID}${portSuffix}`);
+    // 🔧 FORCE ORIGIN: Usa sempre l'origin dall'environment in produzione
+    const finalExpectedOrigin = process.env.ORIGIN || (req.get('origin') || req.get('referer')?.split('/').slice(0, 3).join('/') || `${protocol}://${currentRpID}${portSuffix}`);
 
     // �🔍 Debug RP ID hash mismatch (senza CBOR)
     try {
@@ -298,7 +292,7 @@ app.post('/register/complete', async (req, res) => {
       console.log('- Expected RP ID Hash (hex):', expectedRpIDHash);
       
       console.log('🔍 Possibili RP ID che il client potrebbe stare usando:');
-      const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', '127.0.0.1', 'localhost:3000'];
+      const possibleRpIDs = ['localhost', 'passkeybasicservice.onrender.com', '127.0.0.1', 'localhost:3000', 'marcobonati.it'];
       possibleRpIDs.forEach(testRpID => {
         const testHash = crypto.createHash('sha256').update(testRpID).digest('hex');
         console.log(`   - ${testRpID}: ${testHash}`);
@@ -391,10 +385,8 @@ app.post('/authenticate/begin', async (req, res) => {
     const requestOrigin = req.get('origin') || req.get('referer')?.replace(/\/$/, '');
     const currentRpID = requestOrigin ? new URL(requestOrigin).hostname : rpID;
 
-    // 🔧 Force RP ID in production  
-    const finalRpID = process.env.NODE_ENV === 'production' ? 
-                      (process.env.RP_ID || currentRpID) : 
-                      currentRpID;
+    // 🔧 Force RP ID in production: usa sempre process.env.RP_ID se presente  
+    const finalRpID = process.env.RP_ID || currentRpID;
 
     console.log('Richiesta autenticazione da:', { requestOrigin, currentRpID, finalRpID });
 
