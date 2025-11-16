@@ -131,6 +131,14 @@ console.log(`🍪 Configurazione cookie:`);
 console.log(`   - Secure: ${isHttps}`);
 console.log(`   - SameSite: ${isProduction ? 'none' : 'lax'}`);
 
+console.log(`Envirnoement Variables at Startup:`);
+console.log(`   - NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   - HTTPS: ${process.env.HTTPS}`);
+console.log(`   - RP_ID: ${process.env.RP_ID}`);
+console.log(`   - ORIGIN: ${process.env.ORIGIN}`);
+console.log(`   - PORT: ${process.env.PORT}`);
+console.log(`   - SESSION_SECRET: ${process.env.SESSION_SECRET}`);
+
 // Middleware per verificare l'autenticazione
 const requireAuth = (req, res, next) => {
   if (!req.session.authenticated || !req.session.userId) {
