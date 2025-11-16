@@ -283,6 +283,10 @@ app.post('/register/complete', async (req, res) => {
 
     // �🔍 Debug RP ID hash mismatch (senza CBOR)
     try {
+      console.log('- Request Origin:', req.get('origin'));
+      console.log('- env.ORIGIN:', process.env.ORIGIN);
+      console.log('- Req referer:', req.get('referer'));
+      console.log('- currentRpID:', currentRpID);
       console.log('- Final RP ID for verification:', finalRpID);
       console.log('- Final expected origin for verification:', finalExpectedOrigin);
       
