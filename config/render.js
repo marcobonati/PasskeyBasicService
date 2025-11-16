@@ -15,7 +15,7 @@ export const renderConfig = {
         NODE_ENV: 'production',
         HTTPS: 'true',
         RP_ID: `marcobonati.it`,
-        ORIGIN: `https://eurodig.marcobonati.it`,
+        ORIGIN: `https://marcobonati.it`,
         PORT: process.env.PORT || 10000
       };
     }
