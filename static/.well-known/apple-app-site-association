@@ -4,7 +4,9 @@
       "D9UY5XJ979.com.fabrick.labs.mb.iOSPasskeysMainApp",
       "R6566VJZ8K.com.fabrick.labs.mb.iOSPasskeysMainApp",
       "D9UY5XJ979.com.fabrick.payments.de.sear.deapp.DigitalEuroApp",
-      "R6566VJZ8K.com.fabrick.payments.de.sear.deapp.DigitalEuroApp"
+      "R6566VJZ8K.com.fabrick.payments.de.sear.deapp.DigitalEuroApp",
+      "D9UY5XJ979.com.fabrick.payments.de.sear.merchant.DigitalEuroMerchantApp",
+      "R6566VJZ8K.com.fabrick.payments.de.sear.merchant.DigitalEuroMerchantApp"
     ]
   }
 }
