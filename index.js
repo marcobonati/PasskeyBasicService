@@ -111,8 +111,12 @@ app.use('/.well-known', express.static('static/.well-known', {
   }
 }));
 
-// NON servire contenuti statici sulla root - interferisce con la nostra pagina
-// app.use(express.static('static'));
+// Serve i file statici dalla cartella 'static' con cache di 7 giorni
+app.use('/static', express.static('static', {
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+  }
+}));
 
 // Configurazione sessioni cloud-friendly
 app.use(session({
