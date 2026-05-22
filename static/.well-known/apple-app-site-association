@@ -23,6 +23,18 @@
         "paths": [
           "*"
         ]
+      },
+      {
+        "appID": "D9UY5XJ979.com.fabrick.payments.de.sear.psp.a.DigialEuroPSPApp",
+        "paths": [
+          "*"
+        ]
+      },
+      {
+        "appID": "R6566VJZ8K.com.fabrick.payments.de.sear.psp.a.DigialEuroPSPApp",
+        "paths": [
+          "*"
+        ]
       }
     ]
   }
