@@ -8,5 +8,22 @@
       "D9UY5XJ979.com.fabrick.payments.de.sear.merchant.DigitalEuroMerchantApp",
       "R6566VJZ8K.com.fabrick.payments.de.sear.merchant.DigitalEuroMerchantApp"
     ]
+  },
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "D9UY5XJ979.com.fabrick.payments.de.sear.deapp.DigitalEuroApp",
+        "paths": [
+          "*"
+        ]
+      },
+      {
+        "appID": "R6566VJZ8K.com.fabrick.payments.de.sear.deapp.DigitalEuroApp",
+        "paths": [
+          "*"
+        ]
+      }
+    ]
   }
 }
