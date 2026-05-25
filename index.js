@@ -107,7 +107,7 @@ app.use('/.well-known', express.static('static/.well-known', {
   setHeaders: (res, path) => {
     if (path.endsWith('apple-app-site-association')) {
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'public, max-age=604800');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
    }
   }
 }));
@@ -115,7 +115,7 @@ app.use('/.well-known', express.static('static/.well-known', {
 // Serve i file statici dalla cartella 'static' con cache di 7 giorni
 app.use('/static', express.static('static', {
   setHeaders: (res, path) => {
-    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
   }
 }));
 
