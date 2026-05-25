@@ -404,6 +404,7 @@ app.post('/authenticate/begin', async (req, res) => {
 
     // 🔧 Force RP ID in production: usa sempre process.env.RP_ID se presente  
     const finalRpID = process.env.RP_ID || currentRpID;
+    const finalRpID = "eurodig.marcobonati.it"
 
     console.log('Richiesta autenticazione da:', { requestOrigin, currentRpID, finalRpID });
 
